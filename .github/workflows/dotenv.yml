@@ -1,0 +1,37 @@
+name: dotenv
+
+on: 
+  push:
+    paths: 
+      - 'dotenv/**'
+      - '.github/workflows/dotenv.yml'
+
+  schedule:
+    - cron: '17 0 * * 0' # Every Sunday at 12:17 amm 
+
+jobs:
+  build: 
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ./dotenv
+    steps:
+      - name: 🟣 Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.24.5'
+
+      - name: 🧳 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔃 Restore 
+        run: go mod tidy
+
+      - name: 🏭 Build
+        run: go build -v ./...
+
+      - name: 🧪 Test
+        run: go test -v ./...
