@@ -74,32 +74,46 @@ func WithEnableShellExpansion(enable bool) ExpandOption {
 	}
 }
 
+func WithShell(shell string) ExpandOption {
+	return func(o *ExpandOptions) {
+		o.UseShell = shell
+	}
+}
+
 func interpolateVar(token string, o *ExpandOptions) (string, error) {
 	key := token
 	defaultValue := ""
 	message := ""
 	if strings.Contains(token, ":-") {
+
 		parts := split(token, ":-")
 		key = parts[0]
-		defaultValue = parts[1]
+		if len(parts) > 1 {
+			defaultValue = parts[1]
+		}
+		println("default", token)
 	} else if strings.Contains(token, ":=") {
 		parts := split(token, ":=")
 		key = parts[0]
-		defaultValue = parts[1]
+		if len(parts) > 1 {
+			defaultValue = parts[1]
+		}
 		if !isValidBashVariable([]rune(key)) {
 			return "", errors.New("invalid bash variable syntax: invalid variable name")
 		}
 
 		if len(key) > 0 {
 			v := o.Get(key)
-			if len(v) == 1 {
+			if len(v) == 0 {
 				o.Set(key, defaultValue)
 			}
 		}
 	} else if strings.Contains(token, ":?") {
 		parts := split(token, ":?")
 		key = parts[0]
-		message = parts[1]
+		if len(parts) > 1 {
+			message = parts[1]
+		}
 	} else if strings.Contains(token, ":") {
 		parts := split(token, ":")
 		key = parts[0]
@@ -129,8 +143,9 @@ func interpolateVar(token string, o *ExpandOptions) (string, error) {
 	value := o.Get(key)
 	if len(value) == 0 {
 		if len(defaultValue) > 0 {
+			println("default value", defaultValue)
 			if strings.Contains(defaultValue, "$") {
-				next, err := interpolateVar(defaultValue, o)
+				next, err := ExpandWithOptions(defaultValue, o)
 				if err != nil {
 					return "", err
 				}
@@ -151,13 +166,13 @@ func interpolateVar(token string, o *ExpandOptions) (string, error) {
 }
 
 func split(s string, value string) []string {
-	index := strings.Index(value, s)
+	index := strings.Index(s, value)
 	if index == -1 {
 		return []string{s}
 	}
 
-	first := value[:index]
-	second := value[index+len(s):]
+	first := s[:index]
+	second := s[index+(len(value)):]
 	if first == "" {
 		return []string{second}
 	}
@@ -185,22 +200,16 @@ func isValidBashVariable(input []rune) bool {
 	return true
 }
 
-func Expand(input string, options ...ExpandOption) (string, error) {
-	ops := &ExpandOptions{
-		Get:                  Get,
-		Set:                  Set,
-		ExpandUnixArgs:       true,
-		ExpandWindowsVars:    false,
-		CommandSubstitution:  false,
-		EnableShellExpansion: false,
-		UseShell:             "",
+func ExpandWithOptions(input string, options *ExpandOptions) (string, error) {
+	if options.Get == nil {
+		options.Get = Get
 	}
 
-	for _, opt := range options {
-		opt(ops)
+	if options.Set == nil {
+		options.Set = Set
 	}
 
-	o := ops
+	o := options
 	kind := none
 	min := rune(0)
 	remaining := len(input)
@@ -208,6 +217,7 @@ func Expand(input string, options ...ExpandOption) (string, error) {
 	runes := []rune(input)
 	output := strings.Builder{}
 	token := strings.Builder{}
+	bracketCount := 0
 	for i := 0; i < l; i++ {
 		remaining--
 		c := runes[i]
@@ -247,12 +257,15 @@ func Expand(input string, options ...ExpandOption) (string, error) {
 					remaining--
 					continue
 				}
+
+				if isLetterOrDigit(next) || next == '_' {
+					kind = bashVariable
+					continue
+				}
 			}
 
 			if o.ExpandWindowsVars && c == '%' {
 				kind = windowsVariable
-				i++
-				remaining--
 				continue
 			}
 
@@ -273,21 +286,36 @@ func Expand(input string, options ...ExpandOption) (string, error) {
 			continue
 		}
 
-		if kind == bashInterpolation && c == '}' {
-			if token.Len() == 0 {
-				return "", errors.New("invalid bash variable syntax: empty variable name")
+		if kind == bashInterpolation {
+			if c == '{' {
+				bracketCount++
+				token.WriteRune(c)
+				continue
 			}
 
-			interpolation := token.String()
-			token.Reset()
-			value, err := interpolateVar(interpolation, o)
-			if err != nil {
-				return "", err
-			}
+			if c == '}' {
+				if bracketCount > 0 {
+					println("closing bracket found, current count:", bracketCount)
+					bracketCount--
+					token.WriteRune(c)
+					continue
+				}
 
-			output.WriteString(value)
-			kind = none
-			continue
+				if token.Len() == 0 {
+					return "", errors.New("invalid bash variable syntax: empty variable name")
+				}
+
+				interpolation := token.String()
+				token.Reset()
+				value, err := interpolateVar(interpolation, o)
+				if err != nil {
+					return "", err
+				}
+
+				output.WriteString(value)
+				kind = none
+				continue
+			}
 		}
 
 		if kind == commandSubstitution && c == ')' {
@@ -400,7 +428,7 @@ func Expand(input string, options ...ExpandOption) (string, error) {
 			continue
 		}
 
-		if kind == bashVariable && (!(isLetterOrDigit(c) && c == '_') || remaining == 0) {
+		if kind == bashVariable && (!(isLetterOrDigit(c) || c == '_') || remaining == 0) {
 			shouldAppend := c != '\\'
 			if remaining == 0 && (isLetterOrDigit(c) || c == '_') {
 				token.WriteRune(c)
@@ -418,8 +446,8 @@ func Expand(input string, options ...ExpandOption) (string, error) {
 			}
 
 			if o.ExpandUnixArgs {
-				i, err := strconv.Atoi(key)
-				if err != nil {
+				i, err := strconv.Atoi(key[1:])
+				if err == nil {
 					if len(os.Args) > i {
 						output.WriteString(os.Args[i])
 					} else {
@@ -466,4 +494,22 @@ func Expand(input string, options ...ExpandOption) (string, error) {
 	output.Reset()
 
 	return out, nil
+}
+
+func Expand(input string, options ...ExpandOption) (string, error) {
+	ops := &ExpandOptions{
+		Get:                  Get,
+		Set:                  Set,
+		ExpandUnixArgs:       true,
+		ExpandWindowsVars:    false,
+		CommandSubstitution:  false,
+		EnableShellExpansion: false,
+		UseShell:             "",
+	}
+
+	for _, opt := range options {
+		opt(ops)
+	}
+
+	return ExpandWithOptions(input, ops)
 }
