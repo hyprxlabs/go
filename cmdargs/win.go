@@ -38,6 +38,7 @@ func appendCliArg(sb *strings.Builder, s string) *strings.Builder {
 	}
 
 	backslashCount := 0
+	sb.WriteRune('"')
 	for _, c := range s {
 		switch c {
 		case '\\':
