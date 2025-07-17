@@ -2,26 +2,42 @@
 
 ## Overview
 
-The `secrets` package provides functionality to mask sensitive information in strings and generate cryptographically
-secure random strings. It is particularly useful for applications that need to handle sensitive data, such as passwords
-or API keys, while ensuring that this data is not exposed in logs or error messages.
+The env package provides utilities for working with environment variables in Go.
+
+It includes functions for expanding environment variables, handling default values,
+manipulating the path variable, and parsing bash-style variable interpolations.
 
 ## Usage
 
-To use `secrets`, import the module in your Go project:
+To use `env`, import the module in your Go project:
 
 ```go
-import "github.com/hyprxlabs/go/secrets"
+import "github.com/hyprxlabs/go/env"
 
 func main() {
-    // Example of masking a sensitive string
-    secrets.DefaultMasker.AddValue("my-secret-password")
+    // Example of expanding an environment variable
+    value, err := env.Expand("$HOME")
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("Expanded value:", value)
 
-    maskedString := secrets.DefaultMasker.Mask("This is my-secret-password and it should be masked.")
-    fmt.Println(maskedString) // Output: This is ******** and it should be masked.
+    env.Set("FOO", "bar")
 
-    // Example of generating a random string
-    newSecret := secrets.Generate(16, secrets.WithSymbols("!@#$%^&*()"))
+    // Example of using default values
+    valueWithDefault, err := env.Expand("${FOO:-default}")
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("Value with default:", valueWithDefault)
+
+
+    // command substitution
+    output, err := env.Expand("Value: $(echo hi)", env.WithCommandSubstitution(true))
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("Command substitution output:", output)
 }
 
 ```
