@@ -684,7 +684,25 @@ func Parse(input string) (*EnvDoc, error) {
 				}
 			}
 
-			doc.AddVariable(*key, string(token.RawValue))
+			if token.Quote != quote_none {
+				doc.AddVariable(*key, string(token.RawValue))
+				key = nil
+				continue
+			}
+
+			r := rune(0)
+			switch {
+			case token.Quote == quote_single:
+				r = rune('\'')
+			case token.Quote == quote_double:
+				r = rune('"')
+			case token.Quote == quote_backtick:
+				r = rune('`')
+			default:
+				r = rune('"')
+			}
+
+			doc.AddQuotedVariable(*key, string(token.RawValue), r)
 			key = nil
 		}
 	}

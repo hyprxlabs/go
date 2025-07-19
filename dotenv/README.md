@@ -4,6 +4,8 @@
 
 The dotenv package enables parsing, reading, and writing dotenv (.env) files in Go
 
+Parse 
+
 ## Usage
 
 To use `env`, import the module in your Go project:

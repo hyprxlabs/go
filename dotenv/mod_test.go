@@ -335,3 +335,76 @@ KEY3=value3`,
 		})
 	}
 }
+
+func TestEnsureQuotedValuesRemain(t *testing.T) {
+	doc := &dotenv.EnvDoc{}
+
+	// Add variables with different quoting styles
+	doc.AddVariable("KEY1", "value1")
+	doc.AddQuotedVariable("KEY2", "value2", '"')
+	doc.AddQuotedVariable("KEY3", "value3", '\'')
+
+	// Ensure all values are quoted
+	for _, node := range doc.ToArray() {
+		if node.Type == dotenv.VARIABLE_TOKEN && node.Quote != nil {
+			assert.NotNil(t, node.Quote, "Expected quoted variable to have a quote rune")
+		}
+	}
+
+	first, ok := doc.GetValue("KEY1")
+	assert.True(t, ok)
+	assert.Equal(t, "value1", first)
+	second, _ := doc.GetValue("KEY2")
+	assert.Equal(t, "value2", second)
+	third, _ := doc.GetValue("KEY3")
+	assert.Equal(t, "value3", third)
+}
+
+func TestEnsureEscapedValuesGetQuoted(t *testing.T) {
+	doc := &dotenv.EnvDoc{}
+
+	// Add variables with escaped characters
+	doc.AddVariable("KEY1", "value with \"escaped quotes\"")
+	doc.AddVariable("KEY2", "value with 'single quotes'")
+	doc.AddVariable("KEY3", "value with \\backslash")
+	doc.AddVariable("KEY4", "value with \nnewlines")
+	doc.AddVariable("KEY5", "value with \t tabs")
+	doc.AddVariable("KEY6", "value with \v vertical tab")
+	doc.AddVariable("KEY7", "value with \f form feed")
+	doc.AddVariable("KEY8", "value with \r carriage return")
+	doc.AddVariable("KEY9", "value with \b backspace")
+	doc.AddVariable("KEY10", `value with \u2603 unicode snowman`)
+
+	// Ensure all values are quoted
+	for _, node := range doc.ToArray() {
+		if node.Type == dotenv.VARIABLE_TOKEN {
+
+			ret := assert.NotNil(t, node.Quote, "Expected quoted variable to have a quote rune")
+			if !ret {
+				t.Errorf("Variable %s should be quoted but is not", *node.Key)
+			}
+		}
+	}
+
+	first, ok := doc.GetValue("KEY1")
+	assert.True(t, ok)
+	assert.Equal(t, "value with \"escaped quotes\"", first)
+	second, _ := doc.GetValue("KEY2")
+	assert.Equal(t, "value with 'single quotes'", second)
+	third, _ := doc.GetValue("KEY3")
+	assert.Equal(t, "value with \\backslash", third)
+	fourth, _ := doc.GetValue("KEY4")
+	assert.Equal(t, "value with \nnewlines", fourth)
+	fifth, _ := doc.GetValue("KEY5")
+	assert.Equal(t, "value with \t tabs", fifth)
+	sixth, _ := doc.GetValue("KEY6")
+	assert.Equal(t, "value with \v vertical tab", sixth)
+	seventh, _ := doc.GetValue("KEY7")
+	assert.Equal(t, "value with \f form feed", seventh)
+	eighth, _ := doc.GetValue("KEY8")
+	assert.Equal(t, "value with \r carriage return", eighth)
+	ninth, _ := doc.GetValue("KEY9")
+	assert.Equal(t, "value with \b backspace", ninth)
+	tenth, _ := doc.GetValue("KEY10")
+	assert.Equal(t, `value with \u2603 unicode snowman`, tenth)
+}
