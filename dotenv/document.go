@@ -48,6 +48,10 @@ func (doc *EnvDoc) At(index int) *Node {
 }
 
 func (doc *EnvDoc) ToArray() []Node {
+	if doc == nil {
+		return []Node{}
+	}
+
 	arr := make([]Node, len(doc.tokens))
 	copy(arr, doc.tokens)
 	return arr

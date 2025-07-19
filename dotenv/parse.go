@@ -48,6 +48,13 @@ type ParseError struct {
 	Column  int
 }
 
+func (t *Token) Value() string {
+	if t.value != nil {
+		return *t.value
+	}
+	return string(t.RawValue)
+}
+
 func (e *ParseError) Error() string {
 	return e.Message + " at line " + strconv.Itoa(e.Line) + ", column " + strconv.Itoa(e.Column)
 }
@@ -119,9 +126,12 @@ func Lex(input string) ([]*Token, error) {
 				fallthrough
 			case token_none:
 				{
+
+					copy := make([]rune, len(state.Buffer))
+					copy = append(copy, state.Buffer...)
 					state.Current = &Token{
 						Type:     TOKEN_NAME,
-						RawValue: []rune(string(state.Buffer)),
+						RawValue: copy,
 						Quote:    quote_none,
 						Start:    state.Start,
 						End: &Mark{
@@ -130,6 +140,8 @@ func Lex(input string) ([]*Token, error) {
 						},
 					}
 
+					println("Adding TOKEN_NAME:", string(state.Current.RawValue))
+
 					state.Tokens = append(state.Tokens, state.Current)
 					state.Start = &Mark{Line: state.Line, Column: state.Column}
 					state.Buffer = []rune{}
@@ -137,9 +149,11 @@ func Lex(input string) ([]*Token, error) {
 				}
 			case TOKEN_COMMENT:
 				{
+					copy := make([]rune, len(state.Buffer))
+					copy = append(copy, state.Buffer...)
 					state.Current = &Token{
 						Type:     TOKEN_COMMENT,
-						RawValue: []rune(string(state.Buffer)),
+						RawValue: copy,
 						Quote:    quote_none,
 						Start:    state.Start,
 						End: &Mark{
@@ -165,6 +179,7 @@ func Lex(input string) ([]*Token, error) {
 						return nil, e
 					}
 
+					println("copy buffer", string(state.Buffer))
 					var copy = make([]rune, len(state.Buffer))
 					copy = append(copy, state.Buffer...)
 
@@ -190,6 +205,21 @@ func Lex(input string) ([]*Token, error) {
 
 						state.Buffer = []rune{}
 						state.Tokens = append(state.Tokens, state.Current)
+					} else {
+						println("empty value found, creating empty token", string(state.Buffer))
+						state.Current = &Token{
+							Type:     TOKEN_VALUE,
+							RawValue: []rune{},
+							Quote:    quote_none,
+							Start:    state.Start,
+							End: &Mark{
+								Line:   state.Line,
+								Column: state.Column - 1,
+							},
+						}
+
+						state.Buffer = []rune{}
+						state.Tokens = append(state.Tokens, state.Current)
 					}
 
 					kind = token_none
@@ -203,7 +233,28 @@ func Lex(input string) ([]*Token, error) {
 		state.Column++
 		switch kind {
 		case token_none:
-			fallthrough
+			if unicode.IsSpace(c) {
+				continue
+			}
+			if c == '#' {
+				kind = TOKEN_COMMENT
+				continue
+			}
+
+			if unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_' {
+				kind = TOKEN_NAME
+				state.Buffer = append(state.Buffer, c)
+				continue
+			}
+
+			fail := &ParseError{
+				Message: "Invalid syntax: unexpected character '" + string(c) + "'",
+				Line:    state.Line,
+				Column:  state.Column,
+			}
+
+			return nil, fail
+
 		case TOKEN_NAME:
 			{
 				// do not append, ignore # and continue
@@ -233,6 +284,8 @@ func Lex(input string) ([]*Token, error) {
 							Column: state.Column - 1,
 						},
 					}
+					println("Adding TOKEN_NAME:", string(state.Current.RawValue))
+
 					state.Buffer = []rune{}
 					state.Tokens = append(state.Tokens, state.Current)
 					state.Start = &Mark{Line: state.Line, Column: state.Column}
@@ -279,35 +332,36 @@ func Lex(input string) ([]*Token, error) {
 
 		case TOKEN_VALUE:
 			{
-				if state.Quote == quote_none && len(state.Buffer) == 0 {
-					switch c {
-					case '\t':
-						fallthrough
-					case '\n':
-						continue
-					case '"':
-						state.Quote = quote_double
-						state.Start = &Mark{Line: state.Line, Column: state.Column}
-						continue
-					case '\'':
-						state.Quote = quote_single
-						state.Start = &Mark{Line: state.Line, Column: state.Column}
-						continue
-					case '`':
-						state.Quote = quote_backtick
-						state.Start = &Mark{Line: state.Line, Column: state.Column}
-						continue
-					default:
-						if unicode.IsSpace(c) {
+				if state.Quote == quote_none {
+					if len(state.Buffer) == 0 {
+						switch c {
+						case '\t':
+							fallthrough
+						case '\n':
+							continue
+						case '"':
+							state.Quote = quote_double
+							state.Start = &Mark{Line: state.Line, Column: state.Column}
+							continue
+						case '\'':
+							state.Quote = quote_single
+							state.Start = &Mark{Line: state.Line, Column: state.Column}
+							continue
+						case '`':
+							state.Quote = quote_backtick
+							state.Start = &Mark{Line: state.Line, Column: state.Column}
+							continue
+						default:
+							if unicode.IsSpace(c) {
+								continue
+							}
+
+							println("Appending character to buffer:", string(c))
+							state.Buffer = append(state.Buffer, c)
 							continue
 						}
-
-						state.Buffer = append(state.Buffer, c)
-						continue
 					}
-				}
 
-				if state.Quote == quote_none {
 					if c == '#' {
 						kind = TOKEN_COMMENT
 						copy := make([]rune, len(state.Buffer))
@@ -334,6 +388,20 @@ func Lex(input string) ([]*Token, error) {
 
 							state.Buffer = []rune{}
 							state.Tokens = append(state.Tokens, state.Current)
+						} else {
+							state.Current = &Token{
+								Type:     TOKEN_VALUE,
+								RawValue: []rune{},
+								Quote:    quote_none,
+								Start:    state.Start,
+								End: &Mark{
+									Line:   state.Line,
+									Column: state.Column - 1,
+								},
+							}
+
+							state.Buffer = []rune{}
+							state.Tokens = append(state.Tokens, state.Current)
 						}
 
 						state.Buffer = []rune{}
@@ -341,6 +409,7 @@ func Lex(input string) ([]*Token, error) {
 						continue
 					}
 
+					println("Appending character to buffer:", string(c))
 					state.Buffer = append(state.Buffer, c)
 					continue
 				}
@@ -361,9 +430,35 @@ func Lex(input string) ([]*Token, error) {
 							default:
 								state.Buffer = append(state.Buffer, p)
 							}
+
+							continue
+						}
+
+						if p == 'U' {
+
+							if i+7 < max {
+								// capture unicode escape sequence
+								hex := string(runes[i+2 : i+10])
+								if len(hex) == 8 {
+									var codePoint rune
+									_, err := fmt.Sscanf(hex, "%x", &codePoint)
+									if err == nil {
+										state.Buffer = append(state.Buffer, codePoint)
+										i += 9 // skip the next 9 characters
+									} else {
+										return nil, &ParseError{
+											Message: "Invalid unicode escape sequence",
+											Line:    state.Line,
+											Column:  state.Column,
+										}
+									}
+								}
+							}
+							continue
 						}
 
 						if p == 'u' {
+
 							if i+5 < max {
 								// capture unicode escape sequence
 								hex := string(runes[i+2 : i+6])
@@ -382,6 +477,7 @@ func Lex(input string) ([]*Token, error) {
 									}
 								}
 							}
+							continue
 						}
 
 						state.Buffer = append(state.Buffer, c)
@@ -398,6 +494,66 @@ func Lex(input string) ([]*Token, error) {
 
 				state.Buffer = append(state.Buffer, c)
 			}
+		}
+	}
+
+	if len(state.Buffer) > 0 {
+		if state.Current != nil {
+			if state.Current.Type == TOKEN_VALUE {
+				e := &ParseError{
+					Message: "Invalid syntax: value not terminated",
+					Line:    state.Line,
+					Column:  state.Column,
+				}
+				return nil, e
+			}
+
+			if state.Current.Type == TOKEN_NAME {
+				state.Current = &Token{
+					Type:     TOKEN_VALUE,
+					RawValue: []rune(string(state.Buffer)),
+					Quote:    quote_none,
+					Start:    state.Start,
+					End: &Mark{
+						Line:   state.Line,
+						Column: state.Column - 1,
+					},
+				}
+
+				println("Adding TOKEN_VALUE:", string(state.Current.RawValue))
+
+				state.Tokens = append(state.Tokens, state.Current)
+				state.Buffer = []rune{}
+			} else {
+				state.Current = &Token{
+					Type:     TOKEN_NAME,
+					RawValue: []rune(string(state.Buffer)),
+					Quote:    quote_none,
+					Start:    state.Start,
+					End: &Mark{
+						Line:   state.Line,
+						Column: state.Column - 1,
+					},
+				}
+
+				println("Adding TOKEN_NAME:", string(state.Current.RawValue))
+
+				state.Tokens = append(state.Tokens, state.Current)
+				state.Buffer = []rune{}
+			}
+
+		} else {
+			state.Current = &Token{
+				Type:     TOKEN_NAME,
+				RawValue: []rune(string(state.Buffer)),
+				Quote:    quote_none,
+				Start:    state.Start,
+				End: &Mark{
+					Line:   state.Line,
+					Column: state.Column - 1,
+				},
+			}
+			state.Tokens = append(state.Tokens, state.Current)
 		}
 	}
 
@@ -501,11 +657,14 @@ func Parse(input string) (*EnvDoc, error) {
 	for _, token := range tokens {
 		switch token.Type {
 		case TOKEN_NEWLINE:
+			key = nil
 			doc.AddNewline()
 			continue
 		case TOKEN_COMMENT:
+			key = nil
 			doc.AddComment(string(token.RawValue))
 		case TOKEN_NAME:
+			println("Processing TOKEN_NAME:", string(token.RawValue))
 			if key == nil {
 				v := string(token.RawValue)
 				key = &v
@@ -516,6 +675,7 @@ func Parse(input string) (*EnvDoc, error) {
 			v2 := string(token.RawValue)
 			key = &v2
 		case TOKEN_VALUE:
+			println("Processing TOKEN_VALUE:", string(token.RawValue))
 			if key == nil {
 				return nil, &ParseError{
 					Message: "Invalid syntax: value without a key",
@@ -527,6 +687,11 @@ func Parse(input string) (*EnvDoc, error) {
 			doc.AddVariable(*key, string(token.RawValue))
 			key = nil
 		}
+	}
+
+	if key != nil {
+		doc.AddVariable(*key, "")
+		key = nil
 	}
 
 	return doc, nil

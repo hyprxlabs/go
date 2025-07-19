@@ -92,10 +92,10 @@ func (e *Entry) SetProtectedValue(key string, value string) *Entry {
 	if i == -1 {
 		e.Entry.Values = append(e.Entry.Values, gokeepasslib.ValueData{
 			Key:   key,
-			Value: gokeepasslib.V{Content: "", Protected: wrappers.NewBoolWrapper(true)},
+			Value: gokeepasslib.V{Content: value, Protected: wrappers.NewBoolWrapper(true)},
 		})
 	} else {
-		e.Entry.Values[i].Value = gokeepasslib.V{Content: "", Protected: wrappers.NewBoolWrapper(true)}
+		e.Entry.Values[i].Value = gokeepasslib.V{Content: value, Protected: wrappers.NewBoolWrapper(true)}
 	}
 
 	return e

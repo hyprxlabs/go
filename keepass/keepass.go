@@ -5,7 +5,6 @@ package keepass
 // and would allow for more efficient tree traversals.
 import (
 	"errors"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,6 +27,7 @@ type KdbxOptions struct {
 	Secret              *string
 	SecretFileData      []byte
 	Create              bool
+	CreateDir           bool
 	UseCommonDelimiters bool
 	Delimiter           *string
 }
@@ -37,12 +37,12 @@ type Kdbx struct {
 	options   KdbxOptions
 	open      bool
 	delimiter string
+	rootGroup *Group
 }
 
 type pathQuery []string
 
 func New(options KdbxOptions) *Kdbx {
-
 	return &Kdbx{
 		options:   options,
 		open:      false,
@@ -88,13 +88,14 @@ func (kdbx *Kdbx) Create() error {
 		return ErrNoSecret
 	}
 
-	exists := false
 	if _, err := os.Stat(kdbx.options.Path); err != nil {
-		exists = true
-	}
-
-	if exists {
-		return errors.New("file already exists")
+		if !os.IsNotExist(err) {
+			if os.IsExist(err) {
+				return errors.New("file already exists")
+			} else {
+				return err
+			}
+		}
 	}
 
 	db := gokeepasslib.NewDatabase(
@@ -112,7 +113,6 @@ func (kdbx *Kdbx) Create() error {
 		return err
 	}
 
-	slog.Debug("creating new keepass database", "path", kdbx.options.Path)
 	file, err := os.Create(kdbx.options.Path)
 	if err != nil {
 		return err
@@ -177,12 +177,26 @@ func (kdbx *Kdbx) Open() error {
 		return ErrNoSecret
 	}
 
-	exists := false
+	exists := true
 
-	if _, err := os.Stat(kdbx.options.Path); err == nil {
-		exists = true
-	} else if !os.IsNotExist(err) {
-		exists = true
+	if _, err := os.Stat(kdbx.options.Path); err != nil {
+		if os.IsNotExist(err) {
+			exists = false
+		} else {
+			return err
+		}
+	}
+
+	dirname := filepath.Dir(kdbx.options.Path)
+	if _, err := os.Stat(dirname); os.IsNotExist(err) {
+		if !kdbx.options.CreateDir {
+			return errors.New("directory does not exist and createDir option is false")
+		}
+
+		err := os.MkdirAll(dirname, 0755)
+		if err != nil {
+			return err
+		}
 	}
 
 	if !exists {
@@ -200,13 +214,6 @@ func (kdbx *Kdbx) Open() error {
 		db.Content.Root.Groups[0].Name = rg
 		db.Credentials = creds
 
-		dir := filepath.Dir(kdbx.options.Path)
-		err := os.MkdirAll(dir, 0755)
-		if err != nil {
-			return err
-		}
-
-		slog.Debug("creating new keepass database", "path", kdbx.options.Path)
 		file, err := os.Create(kdbx.options.Path)
 		if err != nil {
 			return err
@@ -237,6 +244,7 @@ func (kdbx *Kdbx) Open() error {
 		return nil
 	}
 
+	db.Credentials = creds
 	file, err := os.OpenFile(kdbx.options.Path, os.O_RDONLY, 0644)
 	if err != nil {
 		return err
@@ -249,7 +257,6 @@ func (kdbx *Kdbx) Open() error {
 		return err
 	}
 
-	db.Credentials = creds
 	err = db.UnlockProtectedEntries()
 	if err != nil {
 		return err
@@ -261,6 +268,33 @@ func (kdbx *Kdbx) Open() error {
 }
 
 func (kdbx *Kdbx) Save() error {
+	if kdbx.db.Credentials == nil {
+
+		if kdbx.options.Secret != nil && kdbx.options.SecretFileData != nil {
+			c, err := gokeepasslib.NewPasswordAndKeyDataCredentials(*kdbx.options.Secret, kdbx.options.SecretFileData)
+			if err != nil {
+				return err
+			}
+			kdbx.db.Credentials = c
+		} else if kdbx.options.Secret != nil {
+			c := gokeepasslib.NewPasswordCredentials(*kdbx.options.Secret)
+			kdbx.db.Credentials = c
+		} else if kdbx.options.SecretFileData != nil {
+			c, err := gokeepasslib.NewKeyDataCredentials(kdbx.options.SecretFileData)
+			if err != nil {
+				return err
+			}
+			kdbx.db.Credentials = c
+		} else {
+			return ErrNoSecret
+		}
+	}
+
+	// ensure the root group is correctly set before saving
+	if kdbx.rootGroup != nil {
+		kdbx.db.Content.Root.Groups[0] = *kdbx.rootGroup.Group
+	}
+
 	err := kdbx.db.LockProtectedEntries()
 	if err != nil {
 		return err
@@ -279,6 +313,18 @@ func (kdbx *Kdbx) Save() error {
 	}
 
 	return nil
+}
+
+func (kdbx *Kdbx) GetBinaries() *gokeepasslib.Binaries {
+	if kdbx == nil || kdbx.db == nil {
+		return nil
+	}
+
+	if kdbx.db.Header.IsKdbx4() {
+		return &kdbx.db.Content.InnerHeader.Binaries
+	}
+
+	return &kdbx.db.Content.Meta.Binaries
 }
 
 func (kdbx *Kdbx) SaveAs(path string) error {
@@ -302,6 +348,13 @@ func (kdbx *Kdbx) SaveAs(path string) error {
 	return nil
 }
 
+func (kdbx *Kdbx) IsOpen() bool {
+	if kdbx == nil {
+		return false
+	}
+	return kdbx.open
+}
+
 func rootGroupFromPath(path string) string {
 	base := filepath.Base(path)
 	ext := filepath.Ext(path)
@@ -311,7 +364,19 @@ func rootGroupFromPath(path string) string {
 	return base
 }
 
-func (kdbx *Kdbx) RootGroup() *gokeepasslib.Group {
+func (kdbx *Kdbx) Root() *Group {
+	if kdbx == nil {
+		return nil
+	}
+
+	if kdbx.rootGroup != nil {
+		return kdbx.rootGroup
+	}
+
+	if kdbx.db == nil {
+		return nil
+	}
+
 	root := kdbx.db.Content.Root
 	if len(root.Groups) == 0 {
 		root.Groups = make([]gokeepasslib.Group, 1)
@@ -321,7 +386,12 @@ func (kdbx *Kdbx) RootGroup() *gokeepasslib.Group {
 	}
 
 	group := kdbx.db.Content.Root.Groups[0]
-	return &group
+	kdbx.rootGroup = &Group{
+		Group:  &group,
+		parent: nil,
+	}
+
+	return kdbx.rootGroup
 }
 
 func (kdbx *Kdbx) FindGroup(path string) *Group {
@@ -333,14 +403,13 @@ func (kdbx *Kdbx) FindEntry(path string) *Entry {
 	query := kdbx.splitPath(path)
 	if len(query) == 1 {
 		name := query[0]
-		group := kdbx.RootGroup()
-
-		if len(group.Entries) == 0 {
+		group := kdbx.Root()
+		if group == nil {
 			return nil
 		}
 
-		g := &Group{
-			Group: group,
+		if len(group.Entries) == 0 {
+			return nil
 		}
 
 		for _, entry := range group.Entries {
@@ -349,7 +418,7 @@ func (kdbx *Kdbx) FindEntry(path string) *Entry {
 
 				return &Entry{
 					Entry:  &entry,
-					parent: g,
+					parent: group,
 				}
 			}
 
@@ -361,7 +430,7 @@ func (kdbx *Kdbx) FindEntry(path string) *Entry {
 			altPath := entry.GetContent(KP_PATH)
 			if strings.EqualFold(altPath, name) {
 				return &Entry{
-					&entry, g,
+					&entry, group,
 				}
 			}
 		}
@@ -406,18 +475,14 @@ func (kdbx *Kdbx) UpsertEntry(path string, cb func(entry *Entry)) *Entry {
 	query := kdbx.splitPath(path)
 	if len(query) == 1 {
 		name := query[0]
-		group := kdbx.RootGroup()
-
-		g := &Group{
-			group, nil,
-		}
+		group := kdbx.Root()
 
 		if len(group.Entries) > 0 {
 			for _, entry := range group.Entries {
 				title := entry.GetTitle()
 				if strings.EqualFold(title, name) {
 					e := &Entry{
-						&entry, g,
+						&entry, group,
 					}
 					cb(e)
 
@@ -436,10 +501,8 @@ func (kdbx *Kdbx) UpsertEntry(path string, cb func(entry *Entry)) *Entry {
 	lastIndex := len(query) - 1
 	name := query[lastIndex]
 	groupQuery := query[:lastIndex]
-	root := kdbx.RootGroup()
-	group := &Group{
-		root, nil,
-	}
+	group := kdbx.Root()
+
 	groups := group.Groups
 	prevIndex := 0
 	for _, seg := range groupQuery {
@@ -447,10 +510,8 @@ func (kdbx *Kdbx) UpsertEntry(path string, cb func(entry *Entry)) *Entry {
 		for i, nextGroup := range groups {
 			if strings.EqualFold(nextGroup.Name, seg) {
 				prevIndex = i
-				group = &Group{
-					&nextGroup, group,
-				}
-				groups = group.Groups
+
+				groups = nextGroup.Groups
 				found = true
 				break
 			}
@@ -494,10 +555,8 @@ func (kdbx *Kdbx) UpsertEntry(path string, cb func(entry *Entry)) *Entry {
 }
 
 func (kdbx *Kdbx) findGroup(query pathQuery) *Group {
-	root := kdbx.RootGroup()
-	group := &Group{
-		root, nil,
-	}
+	group := kdbx.Root()
+
 	groups := group.Groups
 	for _, seg := range query {
 		found := false
