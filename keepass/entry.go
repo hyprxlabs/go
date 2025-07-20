@@ -117,7 +117,7 @@ func (e *Entry) RemoveTag(name string) {
 	}
 
 	sb := make([]string, 0)
-	for tag, _ := range tags {
+	for tag := range tags {
 		if strings.EqualFold(tag, name) {
 			continue
 		}
