@@ -108,6 +108,17 @@ func (kdbx *Kdbx) Create() error {
 	db.Credentials = creds
 
 	dir := filepath.Dir(kdbx.options.Path)
+
+	if _, err := os.Stat(dir); err != nil {
+		if os.IsNotExist(err) {
+			if !kdbx.options.CreateDir {
+				return errors.New("directory does not exist and createDir option is false")
+			}
+		} else {
+			return err
+		}
+	}
+
 	err := os.MkdirAll(dir, 0755)
 	if err != nil {
 		return err
