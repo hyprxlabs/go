@@ -408,3 +408,92 @@ func TestEnsureEscapedValuesGetQuoted(t *testing.T) {
 	tenth, _ := doc.GetValue("KEY10")
 	assert.Equal(t, `value with \u2603 unicode snowman`, tenth)
 }
+
+func TestEnsureParsedQuotesRemain(t *testing.T) {
+
+	envContext := `
+KEY1="value1"
+
+KEY2='value2'
+Key3=value3
+Key4=a value with spaces
+# This is a comment
+Key5="a value with \"escaped quotes\""
+Key6='a value with \'single quotes\''
+Key7="line1
+line2
+line3
+"
+Key8="value with \nnewlines"
+Key9="value with \t tabs"
+Key11="😈"	
+	`
+
+	doc, err := dotenv.Parse(envContext)
+	if err != nil {
+		t.Fatalf("Failed to parse env context: %v", err)
+	}
+
+	for i, node := range doc.ToArray() {
+		switch i {
+		case 0:
+			assert.Equal(t, dotenv.NEWLINE_TOKEN, node.Type, "First token should be a newline")
+		case 1:
+			assert.Equal(t, dotenv.VARIABLE_TOKEN, node.Type, "Second token should be a variable")
+			assert.Equal(t, "KEY1", *node.Key, "Key should be KEY1")
+			assert.Equal(t, "value1", node.Value, "Value should be 'value1'")
+			assert.NotNil(t, node.Quote, "KEY1 should be quoted")
+		case 2:
+			assert.Equal(t, dotenv.NEWLINE_TOKEN, node.Type, "Third token should be a newline")
+		case 3:
+			assert.Equal(t, dotenv.VARIABLE_TOKEN, node.Type, "Fourth token should be a variable")
+			assert.Equal(t, "KEY2", *node.Key, "Key should be KEY2")
+			assert.Equal(t, "value2", node.Value, "Value should be 'value2'")
+			assert.NotNil(t, node.Quote, "KEY2 should be quoted")
+		case 4:
+			assert.Equal(t, dotenv.VARIABLE_TOKEN, node.Type, "Fifth token should be a variable")
+			assert.Equal(t, "Key3", *node.Key, "Key should be Key3")
+			assert.Equal(t, "value3", node.Value, "Value should be 'value3'")
+			assert.Nil(t, node.Quote, "Key3 should not be quoted")
+		case 5:
+			assert.Equal(t, dotenv.VARIABLE_TOKEN, node.Type, "Sixth token should be a variable")
+			assert.Equal(t, "Key4", *node.Key, "Key should be Key4")
+			assert.Equal(t, "a value with spaces", node.Value, "Value should be 'a value with spaces'")
+			assert.Nil(t, node.Quote, "Key4 should not be quoted")
+
+		case 6:
+			assert.Equal(t, dotenv.COMMENT_TOKEN, node.Type, "Seventh token should be a comment")
+			assert.Equal(t, "This is a comment", node.Value, "Comment should be 'This is a comment'")
+			assert.Nil(t, node.Key, "Comment should not have a key")
+		case 7:
+			assert.Equal(t, dotenv.VARIABLE_TOKEN, node.Type, "Eighth token should be a variable")
+			assert.Equal(t, "Key5", *node.Key, "Key should be Key5")
+			assert.Equal(t, `a value with "escaped quotes"`, node.Value, "Value should be 'a value with \"escaped quotes\"'")
+			assert.NotNil(t, node.Quote, "Key5 should be quoted")
+		case 8:
+			assert.Equal(t, dotenv.VARIABLE_TOKEN, node.Type, "Ninth token should be a variable")
+			assert.Equal(t, "Key6", *node.Key, "Key should be Key6")
+			assert.Equal(t, "a value with 'single quotes'", node.Value, "Value should be 'a value with \\'single quotes\\''")
+			assert.NotNil(t, node.Quote, "Key6 should be quoted")
+		case 9:
+			assert.Equal(t, dotenv.VARIABLE_TOKEN, node.Type, "Tenth token should be a variable")
+			assert.Equal(t, "Key7", *node.Key, "Key should be Key7")
+			assert.Equal(t, "line1\nline2\nline3", node.Value, "Value should be 'line1\nline2\nline3'")
+			assert.NotNil(t, node.Quote, "Key7 should be quoted")
+		case 10:
+			assert.Equal(t, dotenv.VARIABLE_TOKEN, node.Type, "Eleventh token should be a variable")
+			assert.Equal(t, "Key8", *node.Key, "Key should be Key8")
+			assert.Equal(t, "value with \nnewlines", node.Value, "Value should be 'value with \\nnewlines'")
+			assert.NotNil(t, node.Quote, "Key8 should be quoted")
+		case 11:
+			assert.Equal(t, dotenv.VARIABLE_TOKEN, node.Type, "Twelfth token should be a variable")
+			assert.Equal(t, "Key9", *node.Key, "Key should be Key9")
+			assert.Equal(t, "value with \t tabs", node.Value, "Value should be 'value with \\t tabs'")
+			assert.NotNil(t, node.Quote, "Key9 should be quoted")
+		case 12:
+			assert.Equal(t, dotenv.VARIABLE_TOKEN, node.Type, "Thirteenth token should be a variable")
+			assert.Equal(t, "Key11", *node.Key, "Key should be Key11")
+			assert.Equal(t, "😈", node.Value, "Value should be '😈'")
+		}
+	}
+}
