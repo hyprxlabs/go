@@ -19,8 +19,10 @@ type EnvDoc struct {
 	tokens []Node
 }
 
-func (doc *EnvDoc) AddNode(node Node) {
-	doc.tokens = append(doc.tokens, node)
+func NewDocument() *EnvDoc {
+	return &EnvDoc{
+		tokens: make([]Node, 0),
+	}
 }
 
 func (doc *EnvDoc) AddNewline() {
@@ -104,6 +106,25 @@ func (doc *EnvDoc) AddQuotedVariable(key, value string, quote rune) {
 	})
 }
 
+func (doc *EnvDoc) Add(token Node) {
+	if token.Type == NEWLINE_TOKEN || token.Type == COMMENT_TOKEN || token.Type == VARIABLE_TOKEN {
+		doc.tokens = append(doc.tokens, token)
+	} else {
+		// Ignore other types of tokens
+		return
+	}
+}
+
+func (doc *EnvDoc) AddRange(tokens []Node) {
+	if tokens == nil || len(tokens) == 0 {
+		return
+	}
+
+	for _, token := range tokens {
+		doc.Add(token)
+	}
+}
+
 func (doc *EnvDoc) Len() int {
 	return len(doc.tokens)
 }
@@ -135,7 +156,7 @@ func (doc *EnvDoc) ToMap() map[string]string {
 	return m
 }
 
-func (doc *EnvDoc) GetValue(key string) (string, bool) {
+func (doc *EnvDoc) Get(key string) (string, bool) {
 	for _, token := range doc.tokens {
 		if token.Type == VARIABLE_TOKEN && token.Key != nil && *token.Key == key {
 			return token.Value, true
@@ -144,7 +165,7 @@ func (doc *EnvDoc) GetValue(key string) (string, bool) {
 	return "", false
 }
 
-func (doc *EnvDoc) GetKeys() []string {
+func (doc *EnvDoc) Keys() []string {
 	keys := make([]string, 0, len(doc.tokens))
 	for _, token := range doc.tokens {
 		if token.Type == VARIABLE_TOKEN && token.Key != nil {
@@ -164,7 +185,7 @@ func (doc *EnvDoc) GetComments() []string {
 	return comments
 }
 
-func (doc *EnvDoc) SetValue(key, value string) {
+func (doc *EnvDoc) Set(key, value string) {
 	isset := false
 	for i, token := range doc.tokens {
 		if token.Type == VARIABLE_TOKEN && token.Key != nil && *token.Key == key {
@@ -182,7 +203,7 @@ func (doc *EnvDoc) Merge(other *EnvDoc) {
 	for _, token := range other.tokens {
 		switch token.Type {
 		case VARIABLE_TOKEN:
-			doc.SetValue(*token.Key, token.Value)
+			doc.Set(*token.Key, token.Value)
 		}
 	}
 }

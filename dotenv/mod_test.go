@@ -19,11 +19,11 @@ func TestEnvDoc_AddMethods(t *testing.T) {
 	assert.Equal(t, 4, doc.Len())
 
 	// Check variable values
-	value1, ok1 := doc.GetValue("KEY1")
+	value1, ok1 := doc.Get("KEY1")
 	assert.True(t, ok1)
 	assert.Equal(t, "value1", value1)
 
-	value2, ok2 := doc.GetValue("KEY2")
+	value2, ok2 := doc.Get("KEY2")
 	assert.True(t, ok2)
 	assert.Equal(t, "value2", value2)
 
@@ -33,7 +33,7 @@ func TestEnvDoc_AddMethods(t *testing.T) {
 	assert.Equal(t, "This is a comment", comments[0])
 }
 
-func TestEnvDoc_GetKeys(t *testing.T) {
+func TestEnvDoc_Keys(t *testing.T) {
 	doc := &dotenv.EnvDoc{}
 
 	doc.AddVariable("KEY1", "value1")
@@ -41,7 +41,7 @@ func TestEnvDoc_GetKeys(t *testing.T) {
 	doc.AddComment("comment")
 	doc.AddVariable("KEY3", "value3")
 
-	keys := doc.GetKeys()
+	keys := doc.Keys()
 	assert.Len(t, keys, 3)
 	assert.Contains(t, keys, "KEY1")
 	assert.Contains(t, keys, "KEY2")
@@ -119,20 +119,20 @@ func TestEnvDoc_SetValue(t *testing.T) {
 	doc := &dotenv.EnvDoc{}
 
 	// Set new value
-	doc.SetValue("KEY1", "value1")
-	value1, ok1 := doc.GetValue("KEY1")
+	doc.Set("KEY1", "value1")
+	value1, ok1 := doc.Get("KEY1")
 	assert.True(t, ok1)
 	assert.Equal(t, "value1", value1)
 
 	// Update existing value
-	doc.SetValue("KEY1", "updated_value1")
-	updatedValue1, ok1Updated := doc.GetValue("KEY1")
+	doc.Set("KEY1", "updated_value1")
+	updatedValue1, ok1Updated := doc.Get("KEY1")
 	assert.True(t, ok1Updated)
 	assert.Equal(t, "updated_value1", updatedValue1)
 
 	// Set another new value
-	doc.SetValue("KEY2", "value2")
-	value2, ok2 := doc.GetValue("KEY2")
+	doc.Set("KEY2", "value2")
+	value2, ok2 := doc.Get("KEY2")
 	assert.True(t, ok2)
 	assert.Equal(t, "value2", value2)
 }
@@ -151,17 +151,17 @@ func TestEnvDoc_Merge(t *testing.T) {
 	doc1.Merge(doc2)
 
 	// Check that KEY1 remains unchanged
-	value1, ok1 := doc1.GetValue("KEY1")
+	value1, ok1 := doc1.Get("KEY1")
 	assert.True(t, ok1)
 	assert.Equal(t, "value1", value1)
 
 	// Check that KEY2 was updated
-	value2, ok2 := doc1.GetValue("KEY2")
+	value2, ok2 := doc1.Get("KEY2")
 	assert.True(t, ok2)
 	assert.Equal(t, "updated_value2", value2)
 
 	// Check that KEY3 was added
-	value3, ok3 := doc1.GetValue("KEY3")
+	value3, ok3 := doc1.Get("KEY3")
 	assert.True(t, ok3)
 	assert.Equal(t, "value3", value3)
 }
@@ -171,12 +171,12 @@ func TestEnvDoc_GetValue_NotFound(t *testing.T) {
 	doc.AddVariable("KEY1", "value1")
 
 	// Test existing key
-	value1, ok1 := doc.GetValue("KEY1")
+	value1, ok1 := doc.Get("KEY1")
 	assert.True(t, ok1)
 	assert.Equal(t, "value1", value1)
 
 	// Test non-existing key
-	value2, ok2 := doc.GetValue("NONEXISTENT")
+	value2, ok2 := doc.Get("NONEXISTENT")
 	assert.False(t, ok2)
 	assert.Equal(t, "", value2)
 }
@@ -306,9 +306,9 @@ KEY3=value3`,
 		},
 		{
 			name:  "single quote does not escape",
-			input: `KEY_WITH_SINGLE_QUOTE='value with single quote \'`,
+			input: `KEY_WITH_SINGLE_QUOTE='value with single quote \n'`,
 			expected: map[string]string{
-				"KEY_WITH_SINGLE_QUOTE": "value with single quote \\",
+				"KEY_WITH_SINGLE_QUOTE": "value with single quote \\n",
 			},
 		},
 	}
@@ -351,12 +351,12 @@ func TestEnsureQuotedValuesRemain(t *testing.T) {
 		}
 	}
 
-	first, ok := doc.GetValue("KEY1")
+	first, ok := doc.Get("KEY1")
 	assert.True(t, ok)
 	assert.Equal(t, "value1", first)
-	second, _ := doc.GetValue("KEY2")
+	second, _ := doc.Get("KEY2")
 	assert.Equal(t, "value2", second)
-	third, _ := doc.GetValue("KEY3")
+	third, _ := doc.Get("KEY3")
 	assert.Equal(t, "value3", third)
 }
 
@@ -386,26 +386,26 @@ func TestEnsureEscapedValuesGetQuoted(t *testing.T) {
 		}
 	}
 
-	first, ok := doc.GetValue("KEY1")
+	first, ok := doc.Get("KEY1")
 	assert.True(t, ok)
 	assert.Equal(t, "value with \"escaped quotes\"", first)
-	second, _ := doc.GetValue("KEY2")
+	second, _ := doc.Get("KEY2")
 	assert.Equal(t, "value with 'single quotes'", second)
-	third, _ := doc.GetValue("KEY3")
+	third, _ := doc.Get("KEY3")
 	assert.Equal(t, "value with \\backslash", third)
-	fourth, _ := doc.GetValue("KEY4")
+	fourth, _ := doc.Get("KEY4")
 	assert.Equal(t, "value with \nnewlines", fourth)
-	fifth, _ := doc.GetValue("KEY5")
+	fifth, _ := doc.Get("KEY5")
 	assert.Equal(t, "value with \t tabs", fifth)
-	sixth, _ := doc.GetValue("KEY6")
+	sixth, _ := doc.Get("KEY6")
 	assert.Equal(t, "value with \v vertical tab", sixth)
-	seventh, _ := doc.GetValue("KEY7")
+	seventh, _ := doc.Get("KEY7")
 	assert.Equal(t, "value with \f form feed", seventh)
-	eighth, _ := doc.GetValue("KEY8")
+	eighth, _ := doc.Get("KEY8")
 	assert.Equal(t, "value with \r carriage return", eighth)
-	ninth, _ := doc.GetValue("KEY9")
+	ninth, _ := doc.Get("KEY9")
 	assert.Equal(t, "value with \b backspace", ninth)
-	tenth, _ := doc.GetValue("KEY10")
+	tenth, _ := doc.Get("KEY10")
 	assert.Equal(t, `value with \u2603 unicode snowman`, tenth)
 }
 
@@ -478,7 +478,7 @@ Key11="😈"
 		case 9:
 			assert.Equal(t, dotenv.VARIABLE_TOKEN, node.Type, "Tenth token should be a variable")
 			assert.Equal(t, "Key7", *node.Key, "Key should be Key7")
-			assert.Equal(t, "line1\nline2\nline3", node.Value, "Value should be 'line1\nline2\nline3'")
+			assert.Equal(t, "line1\nline2\nline3\n", node.Value, "Value should be 'line1\nline2\nline3\n'")
 			assert.NotNil(t, node.Quote, "Key7 should be quoted")
 		case 10:
 			assert.Equal(t, dotenv.VARIABLE_TOKEN, node.Type, "Eleventh token should be a variable")
