@@ -9,12 +9,12 @@ import (
 )
 
 func TestNewCommandOutput(t *testing.T) {
-	echo, ok := exec.Which("echo")
+	_, ok := exec.Which("echo")
 	if !ok {
 		t.Skip("echo not found")
 	}
 
-	o, err := exec.New(echo, "hello").Output()
+	o, err := exec.New("echo", "hello").Output()
 	assert.NoError(t, err)
 	assert.Equal(t, 0, o.Code)
 	assert.Equal(t, "hello", strings.TrimSpace(o.Text()))
