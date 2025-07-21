@@ -15,5 +15,5 @@ tag version:
         echo "Usage: just tag <version>"
         exit 1
     fi
-    git tag -a "dotenv/v$version" -m "Release v$version"
-    git push origin "dotenv/v$version"
+    git tag -a "crypto/v$version" -m "Release v$version"
+    git push origin "crypto/v$version"

@@ -5,9 +5,15 @@ on:
     paths: 
       - 'crypto/**'
       - '.github/workflows/crypto.yml'
+    tags:
+      - 'crypto/v*'
+  pull_request:
+    paths: 
+      - 'crypto/**'
+      - '.github/workflows/crypto.yml'
 
   schedule:
-    - cron: '17 0 * * 0' # Every Sunday at 12:17 amm 
+    - cron: '17 0 * * 0' # Every Sunday at 12:17 am
 
 jobs:
   build: 

@@ -5,6 +5,12 @@ on:
     paths: 
       - 'cmdargs/**'
       - '.github/workflows/cmdargs.yml'
+    tags:
+      - 'cmdargs/v*'
+  pull_request:
+    paths: 
+      - 'cmdargs/**'
+      - '.github/workflows/cmdargs.yml'
 
   schedule:
     - cron: '17 0 * * 0' # Every Sunday at 12:17 am

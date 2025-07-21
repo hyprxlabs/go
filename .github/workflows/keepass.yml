@@ -5,9 +5,15 @@ on:
     paths: 
       - 'keepass/**'
       - '.github/workflows/keepass.yml'
+    tags:
+      - 'keepass/v*'
+  pull_request:
+    paths: 
+      - 'keepass/**'
+      - '.github/workflows/keepass.yml'
 
   schedule:
-    - cron: '17 0 * * 0' # Every Sunday at 12:17 amm
+    - cron: '17 0 * * 0' # Every Sunday at 12:17 am
 
 jobs:
   build: 

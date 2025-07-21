@@ -5,9 +5,15 @@ on:
     paths: 
       - 'dotenv/**'
       - '.github/workflows/dotenv.yml'
+    tags:
+      - 'dotenv/v*'
+  pull_request:
+    paths: 
+      - 'dotenv/**'
+      - '.github/workflows/dotenv.yml'
 
   schedule:
-    - cron: '17 0 * * 0' # Every Sunday at 12:17 amm 
+    - cron: '17 0 * * 0' # Every Sunday at 12:17 am
 
 jobs:
   build: 
