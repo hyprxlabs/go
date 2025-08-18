@@ -316,6 +316,7 @@ func ExpandWithOptions(input string, options *ExpandOptions) (string, error) {
 		}
 
 		if kind == commandSubstitution && c == ')' {
+
 			expression := token.String()
 			token.Reset()
 
@@ -402,7 +403,8 @@ func ExpandWithOptions(input string, options *ExpandOptions) (string, error) {
 				}
 			}
 
-			shellArgs = append(shellArgs, expression)
+			args := cmdargs.Split(expression).ToArray()
+			shellArgs = append(shellArgs, args...)
 
 			cmd := exec.Command(o.UseShell, shellArgs...)
 			var outb, errb bytes.Buffer
