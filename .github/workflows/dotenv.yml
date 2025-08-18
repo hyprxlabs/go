@@ -7,6 +7,8 @@ on:
       - '.github/workflows/dotenv.yml'
     tags:
       - 'dotenv/v*'
+    branches:
+      - '**'
   pull_request:
     paths: 
       - 'dotenv/**'
