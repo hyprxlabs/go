@@ -44,6 +44,11 @@ func (b *OptionsBuilder) WithDigits(digits bool) *OptionsBuilder {
 	return b
 }
 
+func (b *OptionsBuilder) WithSize(size int16) *OptionsBuilder {
+	b.opts = append(b.opts, WithSize(size))
+	return b
+}
+
 func (b *OptionsBuilder) Push(setter ...SetOption) *OptionsBuilder {
 	b.opts = append(b.opts, setter...)
 	return b
@@ -86,6 +91,12 @@ func (b *OptionsBuilder) Build() Options {
 		o(&opts)
 	}
 	return opts
+}
+
+func WithSize(size int16) SetOption {
+	return func(o *Options) {
+		o.Size = size
+	}
 }
 
 func WithLower(lower bool) SetOption {
@@ -187,6 +198,10 @@ func (options *Options) GenerateBytes() ([]byte, error) {
 func (options *Options) GenerateRunes() ([]rune, error) {
 	if options.Validator == nil {
 		options.Validator = defaultValidator(*options)
+	}
+
+	if options.Size <= 0 {
+		options.Size = 16
 	}
 
 	var chars string

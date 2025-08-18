@@ -92,3 +92,17 @@ func TestOptionsBuilder(t *testing.T) {
 	assert.NotNil(t, opts.Symbols)
 	assert.Equal(t, 10, opts.Retries)
 }
+
+func TestOptionsBuilderGenerate(t *testing.T) {
+	builder := secrets.NewOptionsBuilder().
+		WithLower(true).
+		WithUpper(false).
+		WithDigits(true).
+		WithSymbols("!").
+		WithSize(10).
+		WithRetries(10)
+	opts := builder.Build()
+	s, err := opts.Generate()
+	assert.NoError(t, err)
+	assert.Len(t, []rune(s), 10)
+}
