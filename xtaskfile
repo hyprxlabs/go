@@ -19,3 +19,24 @@ tasks:
 
   version:
     run: echo deno run -A .eng/publish.ts 
+
+  crypto:install:
+    cmd: "./crypto"
+    run: mise install
+
+  crypto:test:
+    cwd: "./crypto"
+    run: go test -v
+
+  crypto:build:
+    cwd: "./crypto"
+    run: go build -v ./...
+
+  crypto:tidy:
+    cwd: "./crypto"
+    run: go mod tidy
+
+  crypto: 
+    needs: [crypto:tidy, crypto:build, crypto:test]
+    run: |
+      echo "done"
