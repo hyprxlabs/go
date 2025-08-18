@@ -2,6 +2,8 @@ module github.com/hyprxlabs/go/env
 
 go 1.24.5
 
+toolchain go1.24.6
+
 require (
 	github.com/hyprxlabs/go/cmdargs v0.0.1
 	github.com/stretchr/testify v1.10.0

@@ -91,7 +91,6 @@ func interpolateVar(token string, o *ExpandOptions) (string, error) {
 		if len(parts) > 1 {
 			defaultValue = parts[1]
 		}
-		println("default", token)
 	} else if strings.Contains(token, ":=") {
 		parts := split(token, ":=")
 		key = parts[0]
@@ -143,7 +142,6 @@ func interpolateVar(token string, o *ExpandOptions) (string, error) {
 	value := o.Get(key)
 	if len(value) == 0 {
 		if len(defaultValue) > 0 {
-			println("default value", defaultValue)
 			if strings.Contains(defaultValue, "$") {
 				next, err := ExpandWithOptions(defaultValue, o)
 				if err != nil {
@@ -295,7 +293,6 @@ func ExpandWithOptions(input string, options *ExpandOptions) (string, error) {
 
 			if c == '}' {
 				if bracketCount > 0 {
-					println("closing bracket found, current count:", bracketCount)
 					bracketCount--
 					token.WriteRune(c)
 					continue
