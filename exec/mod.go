@@ -2,6 +2,7 @@ package exec
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -24,6 +25,7 @@ var (
 
 type Cmd struct {
 	*exec.Cmd
+	ctx           *context.Context // if true, the command is a context command
 	logger        func(cmd *Cmd)
 	disableLogger bool
 }
@@ -31,6 +33,11 @@ type Cmd struct {
 func New(name string, args ...string) *Cmd {
 	cmd := exec.Command(name, args...)
 	return &Cmd{Cmd: cmd}
+}
+
+func NewContext(ctx context.Context, name string, args ...string) *Cmd {
+	cmd := exec.CommandContext(ctx, name, args...)
+	return &Cmd{Cmd: cmd, ctx: &ctx}
 }
 
 func SetLogger(f func(cmd *Cmd)) {
@@ -43,6 +50,16 @@ func (c *Cmd) SetLogger(f func(cmd *Cmd)) {
 
 func (c *Cmd) DisableLogger() {
 	c.disableLogger = true
+}
+
+func CommandContext(ctx context.Context, command string) *Cmd {
+	exe := ""
+	args := cmdargs.Split(command).ToArray()
+	if len(args) > 0 {
+		exe = args[0]
+		args = args[1:]
+	}
+	return NewContext(ctx, exe, args...)
 }
 
 // Command parses the command and arguments and returns a new Cmd
@@ -127,11 +144,6 @@ func (c *Cmd) WithEnvMap(env map[string]string) *Cmd {
 
 func (c *Cmd) WithEnv(env ...string) *Cmd {
 	c.Cmd.Env = env
-	return c
-}
-
-func (c *Cmd) WithTimeout(timeout time.Duration) *Cmd {
-	c.Cmd.WaitDelay = timeout
 	return c
 }
 

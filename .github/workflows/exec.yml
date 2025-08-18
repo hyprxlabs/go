@@ -30,7 +30,7 @@ jobs:
       - name: 🟣 Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.5'
+          go-version: '^1.18.1'
 
       - name: 🧳 Checkout
         uses: actions/checkout@v4

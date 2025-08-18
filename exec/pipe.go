@@ -2,6 +2,7 @@ package exec
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -10,6 +11,7 @@ import (
 
 type Pipeline struct {
 	cmds []*Cmd
+	ctx  *context.Context // if true, the command is a context command
 }
 
 func (p *Pipeline) Pipe(subcommands ...*Cmd) *Pipeline {
@@ -20,6 +22,11 @@ func (p *Pipeline) Pipe(subcommands ...*Cmd) *Pipeline {
 func (p *Pipeline) PipeCommand(subcommands ...string) *Pipeline {
 	set := make([]*Cmd, 0)
 	for _, cmd := range subcommands {
+		if p.ctx != nil {
+			c := CommandContext(*p.ctx, cmd)
+			set = append(set, c)
+			continue
+		}
 		c := Command(cmd)
 		set = append(set, c)
 	}
@@ -33,19 +40,25 @@ func (c *Cmd) Pipe(subcommands ...*Cmd) *Pipeline {
 	set := make([]*Cmd, 0)
 	set = append(set, c)
 	set = append(set, subcommands...)
-	p := &Pipeline{cmds: set}
+	p := &Pipeline{cmds: set, ctx: c.ctx}
 	return p
 }
 
 func (c *Cmd) PipeCommand(subcommands ...string) *Pipeline {
 	set := make([]*Cmd, 0)
 	set = append(set, c)
+	ctx := c.ctx
 	for _, cmd := range subcommands {
-		c := Command(cmd)
-		set = append(set, c)
+		if ctx == nil {
+			c := Command(cmd)
+			set = append(set, c)
+		} else {
+			c := CommandContext(*ctx, cmd)
+			set = append(set, c)
+		}
 	}
 
-	p := &Pipeline{cmds: set}
+	p := &Pipeline{cmds: set, ctx: c.ctx}
 
 	return p
 }
@@ -135,8 +148,14 @@ func (p *Pipeline) Output() (*Result, error) {
 	}
 
 	if len(errs) > 0 {
+		msg := "Pipeline execution failed with errors: "
+		for _, err := range errs {
+			if err != nil {
+				msg += err.Error() + ";\n"
+			}
+		}
+		e := errors.New(msg)
 
-		e := errors.Join(errs...)
 		return &o, e
 	}
 
@@ -225,7 +244,13 @@ func (p *Pipeline) Run() (*Result, error) {
 	}
 
 	if len(errs) > 0 {
-		e := errors.Join(errs...)
+		msg := "Pipeline execution failed with errors: "
+		for _, err := range errs {
+			if err != nil {
+				msg += err.Error() + ";\n"
+			}
+		}
+		e := errors.New(msg)
 		return &o, e
 	}
 
