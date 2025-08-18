@@ -7,6 +7,8 @@ on:
       - '.github/workflows/cmdargs.yml'
     tags:
       - 'cmdargs/v*'
+    branches:
+      - '**'
   pull_request:
     paths: 
       - 'cmdargs/**'
