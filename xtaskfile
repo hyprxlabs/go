@@ -1,0 +1,21 @@
+
+tasks:
+  cmdargs:test:
+    cwd: "./cmdargs"
+    run: go test -v
+
+  cmdargs:build:
+    cwd: "./cmdargs"
+    run: go build -v ./...
+
+  cmdargs:tidy:
+    cwd: "./cmdargs"
+    run: go mod tidy
+
+  cmdargs: 
+    needs: [cmdargs:tidy, cmdargs:build, cmdargs:test]
+    run: |
+      echo "done"
+
+  version:
+    run: echo deno run -A .eng/publish.ts 
