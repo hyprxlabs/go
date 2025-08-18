@@ -7,6 +7,8 @@ on:
       - '.github/workflows/keepass.yml'
     tags:
       - 'keepass/v*'
+    branches:
+      - '**'
   pull_request:
     paths: 
       - 'keepass/**'
