@@ -87,7 +87,7 @@ Deno.writeTextFileSync(path, JSON.stringify(versions, null, 4));
 
 if (tag) {
     let cmd = new Deno.Command("git", {
-        args: ["-a", "-m", "Set version for " + mod],
+        args: ["commit", "-a", "-m", "update module version for " + mod],
         cwd: dir,
         stdout: "inherit",
         stderr: "inherit",
