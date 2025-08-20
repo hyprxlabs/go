@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/hyprxlabs/go/cmdargs v0.1.1
-	github.com/hyprxlabs/go/env v0.1.2
+	github.com/hyprxlabs/go/env v0.1.4
 	github.com/stretchr/testify v1.10.0
 )
 

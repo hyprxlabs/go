@@ -1,13 +1,9 @@
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/hyprxlabs/go/cmdargs v0.1.0 h1:PptpTfETFcjAOK8uPPBfmCK4Q3tQQOVsPp9uf3PtPaE=
-github.com/hyprxlabs/go/cmdargs v0.1.0/go.mod h1:BassstRnlDT+eVZ6pzBazLr/f5LjxEj/F8qR+le2qgI=
 github.com/hyprxlabs/go/cmdargs v0.1.1 h1:ypm3AOXcCDn9HIw/Haxev/5GQsXz0gmBuHA8xRR8PZQ=
 github.com/hyprxlabs/go/cmdargs v0.1.1/go.mod h1:BassstRnlDT+eVZ6pzBazLr/f5LjxEj/F8qR+le2qgI=
-github.com/hyprxlabs/go/env v0.1.1 h1:wN0daKLG/7UcELcaWKOJFPCxTPPLra6YpDhJYAdTHn4=
-github.com/hyprxlabs/go/env v0.1.1/go.mod h1:wnINNDC0+q5KgOvhkEq8GUOyPl1L56RmX/6sOZwJI9k=
-github.com/hyprxlabs/go/env v0.1.2 h1:6ZemmGQ8/xP67xqfG3vnOsDA4Td3fn3S2I4voAete44=
-github.com/hyprxlabs/go/env v0.1.2/go.mod h1:wnINNDC0+q5KgOvhkEq8GUOyPl1L56RmX/6sOZwJI9k=
+github.com/hyprxlabs/go/env v0.1.4 h1:Dq7cuoB3n14eD4uNZaI5PiesW2TeB/VriOwKESQnoSU=
+github.com/hyprxlabs/go/env v0.1.4/go.mod h1:1h/peqWvsN/xY4OdxSoi1ZIsESmXFhLBc429mWpRIW0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.10.0 h1:Xv5erBjTwe/5IxqUQTdXv5kgmIvbHo3QQyRwhJsOfJA=
