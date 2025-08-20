@@ -1,7 +1,9 @@
 package cmdargs_test
 
 import (
+	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/hyprxlabs/go/cmdargs"
@@ -172,6 +174,62 @@ func TestSplit(t *testing.T) {
 		got := cmdargs.Split(tt.input).ToArray()
 		if !assert.Equal(t, tt.want, got) {
 			t.Errorf("Split(%q) = %v, want %v", tt.input, got, tt.want)
+		}
+	}
+}
+func TestSplitAndExpand(t *testing.T) {
+	expand := func(s string) (string, error) {
+		// Simple expansion: replace $FOO with "foo", $BAR with "bar"
+
+		if strings.Contains(s, "$ERR") {
+			return "", errors.New("bad sub")
+		}
+
+		values := map[string]string{
+			"$FOO": "foo",
+			"$BAR": "bar",
+		}
+
+		for k, v := range values {
+			s = strings.ReplaceAll(s, k, v)
+		}
+
+		return s, nil
+	}
+
+	tests := []struct {
+		input    string
+		want     []string
+		wantErr  bool
+		expandFn func(string) (string, error)
+	}{
+		// No expansion
+		{"a b c", []string{"a", "b", "c"}, false, expand},
+		// Expansion in double quotes
+		{`"foo$FOO" bar`, []string{"foofoo", "bar"}, false, expand},
+		// Expansion in double quotes, multiple tokens
+		{`"bar$BAR" baz`, []string{"barbar", "baz"}, false, expand},
+		// Expansion in double quotes, with spaces
+		{`"$FOO $BAR"`, []string{"foo bar"}, false, expand},
+		// Expansion in single quotes (should not expand)
+		{`'foo$FOO'`, []string{"foo$FOO"}, false, expand},
+		// Expansion in unquoted token
+		{`foo$FOO`, []string{"foofoo"}, false, expand},
+		// Expansion error
+		{`"$ERR"`, nil, true, expand},
+		// Escaped newlines and expansion
+		{"foo$FOO \\\nbar$BAR", []string{"foofoo", "barbar"}, false, expand},
+		// Expansion with no $ present
+		{`foo bar`, []string{"foo", "bar"}, false, expand},
+	}
+
+	for _, tt := range tests {
+		got, err := cmdargs.SplitAndExpand(tt.input, tt.expandFn)
+		if tt.wantErr {
+			assert.Error(t, err, "SplitAndExpand(%q) expected error", tt.input)
+		} else {
+			assert.NoError(t, err, "SplitAndExpand(%q) unexpected error: %v", tt.input, err)
+			assert.Equal(t, tt.want, got, "SplitAndExpand(%q)", tt.input)
 		}
 	}
 }

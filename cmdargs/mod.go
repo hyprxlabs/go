@@ -394,6 +394,211 @@ func Split(s string) *Args {
 	}
 }
 
+func SplitAndExpand(s string, expand func(string) (string, error)) (*Args, error) {
+	quote := quoteNone
+	token := strings.Builder{}
+	tokens := []string{}
+	runes := []rune(s)
+	l := len(runes)
+	hasDollar := false
+	for i := 0; i < l; i++ {
+		c := runes[i]
+
+		if c == '$' {
+			hasDollar = true
+		}
+
+		if quote != quoteNone {
+			previous := rune(0)
+			if i > 0 {
+				previous = runes[i-1]
+			}
+
+			switch quote {
+			case quoteSingle:
+				if c == '\'' && previous != '\\' {
+					quote = quoteNone
+					if token.Len() > 0 {
+						tokens = append(tokens, token.String())
+						token.Reset()
+					}
+					hasDollar = false
+
+					continue
+				}
+			case quoteDouble:
+				if c == '"' && previous != '\\' {
+					quote = quoteNone
+					if token.Len() > 0 {
+						if hasDollar {
+							expanded, err := expand(token.String())
+							if err != nil {
+								return nil, err
+							}
+							tokens = append(tokens, expanded)
+							hasDollar = false
+						} else {
+							tokens = append(tokens, token.String())
+						}
+						token.Reset()
+					}
+					hasDollar = false
+
+					continue
+				}
+			}
+
+			token.WriteRune(c)
+			continue
+		}
+
+		if c == ' ' {
+			if token.Len() == 0 {
+				continue
+			}
+
+			size := i + 1
+			remaining := l - size
+			if remaining > 2 {
+				j := runes[i+1]
+				k := runes[i+2]
+
+				if j == '\n' {
+					i += 1
+					if token.Len() > 0 {
+						if hasDollar {
+							expanded, err := expand(token.String())
+							if err != nil {
+								return nil, err
+							}
+							tokens = append(tokens, expanded)
+							hasDollar = false
+						} else {
+							tokens = append(tokens, token.String())
+						}
+						token.Reset()
+					}
+
+					continue
+				}
+
+				if j == '\r' && k == '\n' {
+					i += 2
+					if token.Len() > 0 {
+						if hasDollar {
+							expanded, err := expand(token.String())
+							if err != nil {
+								return nil, err
+							}
+							tokens = append(tokens, expanded)
+							hasDollar = false
+						} else {
+							tokens = append(tokens, token.String())
+						}
+						token.Reset()
+					}
+
+					continue
+				}
+
+				if (j == '\\' || j == '`') && k == '\n' {
+					i += 2
+
+					if token.Len() > 0 {
+						if hasDollar {
+							expanded, err := expand(token.String())
+							if err != nil {
+								return nil, err
+							}
+							tokens = append(tokens, expanded)
+							hasDollar = false
+						} else {
+							tokens = append(tokens, token.String())
+						}
+					}
+
+					token.Reset()
+					continue
+				}
+
+				if remaining > 3 {
+					l := runes[i+3]
+					if (j == '\\' || j == '`') && k == '\r' && l == '\n' {
+						i += 3
+						if token.Len() > 0 {
+							if hasDollar {
+								expanded, err := expand(token.String())
+								if err != nil {
+									return nil, err
+								}
+								tokens = append(tokens, expanded)
+								hasDollar = false
+							} else {
+								tokens = append(tokens, token.String())
+							}
+						}
+
+						token.Reset()
+						continue
+					}
+				}
+			}
+
+			if token.Len() > 0 {
+				if hasDollar {
+					expanded, err := expand(token.String())
+					if err != nil {
+						return nil, err
+					}
+					hasDollar = false
+					tokens = append(tokens, expanded)
+				} else {
+					tokens = append(tokens, token.String())
+				}
+
+				token.Reset()
+			}
+			continue
+		}
+
+		if token.Len() == 0 {
+			switch c {
+			case '\'':
+				quote = quoteSingle
+				continue
+
+			case '"':
+				quote = quoteDouble
+				continue
+			}
+		}
+
+		if unicode.IsSpace(c) {
+			break
+		}
+
+		token.WriteRune(c)
+	}
+
+	if token.Len() > 0 {
+		if hasDollar {
+			expanded, err := expand(token.String())
+			if err != nil {
+				return nil, err
+			}
+			tokens = append(tokens, expanded)
+		} else {
+			tokens = append(tokens, token.String())
+		}
+	}
+
+	token.Reset()
+	args := &Args{
+		args: tokens,
+	}
+	return args, nil
+}
+
 func normalizeArgs(args []string) []string {
 	if len(args) == 0 {
 		return args
