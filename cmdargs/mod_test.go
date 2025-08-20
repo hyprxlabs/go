@@ -229,7 +229,7 @@ func TestSplitAndExpand(t *testing.T) {
 			assert.Error(t, err, "SplitAndExpand(%q) expected error", tt.input)
 		} else {
 			assert.NoError(t, err, "SplitAndExpand(%q) unexpected error: %v", tt.input, err)
-			assert.Equal(t, tt.want, got, "SplitAndExpand(%q)", tt.input)
+			assert.Equal(t, tt.want, got.ToArray(), "SplitAndExpand(%q)", tt.input)
 		}
 	}
 }
