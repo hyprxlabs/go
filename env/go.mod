@@ -3,7 +3,7 @@ module github.com/hyprxlabs/go/env
 go 1.18
 
 require (
-	github.com/hyprxlabs/go/cmdargs v0.1.0
+	github.com/hyprxlabs/go/cmdargs v0.1.1
 	github.com/stretchr/testify v1.10.0
 )
 

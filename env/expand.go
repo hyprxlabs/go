@@ -325,7 +325,15 @@ func ExpandWithOptions(input string, options *ExpandOptions) (string, error) {
 			}
 
 			if !o.EnableShellExpansion {
-				commandArgs := cmdargs.Split(expression)
+				commandArgs, err := cmdargs.SplitAndExpand(expression, func(s string) (string, error) {
+					return ExpandWithOptions(s, o)
+				})
+				if commandArgs != nil {
+					println(commandArgs.String())
+				}
+				if err != nil {
+					return "", fmt.Errorf("command substitution failed to parse: %w", err)
+				}
 
 				if commandArgs.Len() == 0 {
 					return "", errors.New("invalid command substitution: empty command")
@@ -338,7 +346,7 @@ func ExpandWithOptions(input string, options *ExpandOptions) (string, error) {
 				var outb, errb bytes.Buffer
 				cmd.Stdout = &outb
 				cmd.Stderr = &errb
-				err := cmd.Start()
+				err = cmd.Start()
 				if err != nil {
 					return "", err
 				}
@@ -403,8 +411,7 @@ func ExpandWithOptions(input string, options *ExpandOptions) (string, error) {
 				}
 			}
 
-			args := cmdargs.Split(expression).ToArray()
-			shellArgs = append(shellArgs, args...)
+			shellArgs = append(shellArgs, expression)
 
 			cmd := exec.Command(o.UseShell, shellArgs...)
 			var outb, errb bytes.Buffer
