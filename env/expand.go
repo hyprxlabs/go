@@ -28,6 +28,7 @@ type ExpandOptions struct {
 	// If true, windows style environment variables will be expanded
 	Get                  func(string) string
 	Set                  func(string, string) error
+	Env                  map[string]string
 	ExpandUnixArgs       bool
 	ExpandWindowsVars    bool
 	CommandSubstitution  bool
@@ -328,9 +329,6 @@ func ExpandWithOptions(input string, options *ExpandOptions) (string, error) {
 				commandArgs, err := cmdargs.SplitAndExpand(expression, func(s string) (string, error) {
 					return ExpandWithOptions(s, o)
 				})
-				if commandArgs != nil {
-					println(commandArgs.String())
-				}
 				if err != nil {
 					return "", fmt.Errorf("command substitution failed to parse: %w", err)
 				}
@@ -343,6 +341,14 @@ func ExpandWithOptions(input string, options *ExpandOptions) (string, error) {
 				commandArgs.RemoveAt(0)
 
 				cmd := exec.Command(exe, commandArgs.ToArray()...)
+				if len(o.Env) > 0 {
+					envVars := os.Environ()
+					for k, v := range o.Env {
+						envVars = append(envVars, fmt.Sprintf("%s=%s", k, v))
+					}
+					cmd.Env = envVars
+				}
+
 				var outb, errb bytes.Buffer
 				cmd.Stdout = &outb
 				cmd.Stderr = &errb
@@ -414,6 +420,13 @@ func ExpandWithOptions(input string, options *ExpandOptions) (string, error) {
 			shellArgs = append(shellArgs, expression)
 
 			cmd := exec.Command(o.UseShell, shellArgs...)
+			if len(o.Env) > 0 {
+				envVars := os.Environ()
+				for k, v := range o.Env {
+					envVars = append(envVars, fmt.Sprintf("%s=%s", k, v))
+				}
+				cmd.Env = envVars
+			}
 			var outb, errb bytes.Buffer
 			cmd.Stdout = &outb
 			cmd.Stderr = &errb
